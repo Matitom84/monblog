@@ -7,7 +7,7 @@ const BlogPostSchema = new Schema({
   image: String,
   datePosted:{
     type: Date,
-    default: new Date()   // ⚠️ tous les posts auront la même date (celle du démarrage du serveur)
+    default: new Date()   
   },
 });
 

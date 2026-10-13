@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<%- include('layouts/header') -%>
+<body>
+<%- include('layouts/navbar') -%>
+
+<header class="masthead" style="background-image: url('/images/contact-bg.jpg')">
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="page-heading"><h1>Register a new account</h1></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+      <form action="/users/register" method="POST">
+        <div class="mb-3">
+          <label>Username</label>
+          <input type="text" class="form-control" placeholder="UserName" id="username" name="username">
+        </div>
+        <div class="mb-3">
+          <label>Password</label>
+          <input type="password" class="form-control" placeholder="Password" id="password" name="password">
+        </div>
+        <br>
+        <button type="submit" class="btn btn-primary">Register</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('layouts/footer') -%>
+<%- include('layouts/scripts') -%>
+</body>
+</html>

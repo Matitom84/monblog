@@ -1,95 +1,94 @@
+//  IMPORTS (librairies)
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+const mongoose = require('mongoose');
+const fileUpload = require('express-fileupload');
+const expressSession = require('express-session');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+//  IMPORTS (controllers)
+const homeController = require('./controllers/home');
+const getPostController = require('./controllers/getPost');
+const newPostController = require('./controllers/newPost');
+const storePostController = require('./controllers/storePost');
+const newUserController = require('./controllers/newUser');
+const storeUserController = require('./controllers/storeUser');
+const loginController = require('./controllers/login');
+const loginUserController = require('./controllers/loginUser');
+const logoutController = require('./controllers/logout');
 
+//  IMPORTS (middlewares perso)
+const validateMiddleware = require('./middleware/ValidationMiddleware');
+const authMiddleware = require('./middleware/authMiddleware');
+const redirectIfAuthenticatedMiddleware = require('./middleware/redirectIfAuthenticatedMiddleware');
+
+//  CRÉATION DE L'APPLICATION  (tout ce qui suit utilisE )
 var app = express();
 
-// view engine setup
+//  CONNEXION MONGODB
+mongoose.connect('mongodb://127.0.0.1:27017/newBlog')
+  .then(() => console.log('MongoDB connecté'))
+  .catch(err => console.error('Erreur MongoDB :', err.message));
+
+//  MOTEUR DE VUES (EJS)
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
+//  MIDDLEWARES GÉNÉRAUX
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
-const fileUpload = require('express-fileupload');
 app.use(fileUpload());
 
-const mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost:27017/newBlog');   // ⚠️ sur Mac, si erreur ECONNREFUSED ::1, remplace localhost par 127.0.0.1
-const BlogPost = require('./models/BlogPost.js');
+// session
+app.use(expressSession({
+  secret: 'nodejs est top',
+  resave: false,
+  saveUninitialized: false
+}));
 
-// ⚠️ le prof dit d'enlever cette ligne : elle entre en conflit avec la route /index ci-dessous
-// app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// validation des posts (après fileUpload)
+app.use('/posts/store', validateMiddleware);
 
-app.get('/', (req, res) => {
-  res.redirect('/index');
+// variable globale loggedIn (pour le menu)
+global.loggedIn = null;
+app.use("*", (req, res, next) => {
+  loggedIn = req.session.userId;
+  next();
 });
 
-app.get('/index', async (req, res) => {
-  try {
-    const blogposts = await BlogPost.find({});
-    console.log(blogposts);
-    res.render('index', { blogposts });
-  } catch (error) {
-    console.error('Error fetching blog posts:', error);
-    res.status(500).send('Oops! Something went wrong.');
-  }
-});
+//  ROUTES
+// accueil et posts
+app.get('/', homeController);
+app.get('/posts/new', authMiddleware, newPostController);
+app.get('/post/:id', getPostController);
+app.post('/posts/store', authMiddleware, storePostController);
 
-app.get('/about', (req, res) => {
-  res.render('about')
-})
+// register
+app.get('/auth/register', redirectIfAuthenticatedMiddleware, newUserController);
+app.post('/users/register', redirectIfAuthenticatedMiddleware, storeUserController);
 
-app.get('/contact', (req, res) => {
-  res.render('contact')
-})
+// login
+app.get('/auth/login', redirectIfAuthenticatedMiddleware, loginController);
+app.post('/users/login', redirectIfAuthenticatedMiddleware, loginUserController);
 
-app.get('/post', (req, res) => {
-  res.redirect('/posts/new')
-})
+// logout
+app.get('/auth/logout', logoutController);
 
-app.get('/posts/new', (req, res) => {
-  res.render('create')
-});
-
-app.post('/posts/store', async (req, res) => {
-  try {
-    let image = req.files.image;
-    // Move the uploaded image to the specified path
-    await image.mv(path.resolve(__dirname, 'public/assets/img', image.name))
-    // Create a new blog post with the image path
-    await BlogPost.create({
-      ...req.body,
-      image: '/assets/img/' + image.name
-    });
-    res.redirect('/');
-  } catch (error) {
-    console.error('Error creating blog post:', error);
-    res.status(500).send('Oops! Something went wrong.');
-  }
-});
-
-app.get('/post/:id', async (req, res) => {
-  const blogpost = await BlogPost.findById(req.params.id)
-  res.render('post', { blogpost })
-});
-
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
+// ===================================================================
+//  GESTION DES ERREURS
+// ===================================================================
+// 404
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
-// error handler
-app.use(function(err, req, res, next) {
+// gestionnaire d'erreurs
+app.use(function (err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
   res.status(err.status || 500);
